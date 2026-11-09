@@ -8,23 +8,40 @@ actor "Клієнт" as client
 actor "Власник" as owner
 
 rectangle "Система обробки замовлень кав'ярні" {
+  rectangle "auth-service\n[Python, Flask]\nвидає токени JWT" as auth #LightBlue
+  database "SQLite\nкористувачі" as authdb #LightGray
   rectangle "order-service\n[Python, Flask]\nприймає замовлення" as order #LightBlue
   queue "RabbitMQ\n[vhost coffee]\nчерги orders, orders.invalid" as rabbit #Moccasin
   rectangle "barista-service\n[Python, pika]\nготує замовлення" as barista #LightBlue
-  database "SQLite\nвиконані замовлення" as db #LightGray
+  database "PostgreSQL\nвиконані замовлення" as db #LightGray
+  rectangle "postgres-exporter\nметрики СУБД" as exporter #PaleGreen
   rectangle "Prometheus\nзбирає метрики" as prom #PaleGreen
-  rectangle "Grafana\nпоказує графіки" as grafana #PaleGreen
+  rectangle "Promtail + Loki\nзбирають логи" as loki #PaleGreen
+  rectangle "Tempo\nзберігає трейси" as tempo #PaleGreen
+  rectangle "Grafana\nметрики, логи, трейси" as grafana #PaleGreen
   rectangle "Alertmanager\nобробляє алерти" as am #PaleGreen
 }
 
-client --> order : HTTP POST /orders
+client --> auth : HTTP POST /login
+auth --> authdb : SQL
+client --> order : HTTP POST /orders + токен
 order --> rabbit : AMQP
 rabbit --> barista : AMQP
 barista --> db : SQL
+exporter --> db : SQL
+prom --> exporter : HTTP /metrics
 prom --> order : HTTP /metrics
 prom --> barista : HTTP /metrics
+prom --> auth : HTTP /metrics
 prom --> rabbit : HTTP /metrics
+order --> tempo : OTLP
+barista --> tempo : OTLP
+loki --> order : логи контейнерів
+loki --> barista : логи контейнерів
+loki --> auth : логи контейнерів
 grafana --> prom : PromQL
+grafana --> loki : LogQL
+grafana --> tempo : TraceQL
 prom --> am : алерти
-owner --> grafana : браузер
+owner --> grafana : браузер, вхід за паролем
 @enduml

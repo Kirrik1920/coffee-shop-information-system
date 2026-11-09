@@ -1,12 +1,13 @@
-"""Показує останні виконані замовлення з бази."""
+"""Показує останні виконані замовлення з PostgreSQL."""
 import os
-import sqlite3
 
-connection = sqlite3.connect(os.getenv("DB_PATH", "/data/orders.db"))
-total = connection.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
-rows = connection.execute(
-    "SELECT done_at, drink, quantity, customer FROM orders ORDER BY done_at DESC LIMIT 20"
-).fetchall()
+import psycopg
+
+with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+    total = connection.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+    rows = connection.execute(
+        "SELECT done_at, drink, quantity, customer FROM orders ORDER BY done_at DESC LIMIT 20"
+    ).fetchall()
 
 print(f"Усього виконано: {total}")
 for done_at, drink, quantity, customer in rows:

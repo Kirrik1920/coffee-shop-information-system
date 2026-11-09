@@ -4,21 +4,27 @@ skinparam defaultTextAlignment center
 skinparam shadowing false
 
 queue "RabbitMQ\n(черга orders)" as rabbit #Moccasin
-database "SQLite" as db #LightGray
+database "PostgreSQL" as db #LightGray
 rectangle "Prometheus" as prom #PaleGreen
+rectangle "Tempo" as tempo #PaleGreen
 
 rectangle "barista-service" {
-  rectangle "Споживач черги\n(main, pika)" as consumer #LightBlue
+  rectangle "Споживач черги\n(main, consume)" as consumer #LightBlue
+  rectangle "Перевірка повідомлення\n(parse_message)" as parser #LightBlue
   rectangle "Обробник замовлення\n(handle_order)" as handler #LightBlue
-  rectangle "Сховище\n(already_done, save_order)" as storage #LightBlue
+  rectangle "Сховище\n(ensure_db, already_done, save_order)" as storage #LightBlue
   rectangle "Метрики\n(prometheus_client)" as metrics #LightBlue
+  rectangle "Трейсинг\n(OpenTelemetry)" as tracing #LightBlue
 }
 
 rabbit --> consumer : повідомлення
 consumer --> handler : викликає
+handler --> parser : перевіряє
 handler --> storage : перевіряє, зберігає
 storage --> db : SQL
 handler --> metrics : оновлює лічильники
+handler --> tracing : створює кроки трейса
 prom --> metrics : HTTP :8001/metrics
+tracing --> tempo : OTLP
 handler --> rabbit : ack або nack
 @enduml

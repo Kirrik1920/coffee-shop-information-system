@@ -1,21 +1,28 @@
-"""barista-service: бере замовлення з черги, «готує» їх і зберігає в базу."""
+"""barista-service: бере замовлення з черги, «готує» їх і зберігає в PostgreSQL."""
 import json
 import os
 import random
 import signal
-import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
 
 import pika
+import psycopg
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.propagate import extract
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from prometheus_client import Counter, Histogram, start_http_server
 
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
 RABBIT_USER = os.getenv("RABBIT_USER", "guest")
 RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
 RABBIT_VHOST = os.getenv("RABBIT_VHOST", "/")
-DB_PATH = os.getenv("DB_PATH", "/data/orders.db")
+DATABASE_URL = os.environ["DATABASE_URL"]
+TEMPO_URL = os.getenv("TEMPO_URL", "http://tempo:4318/v1/traces")
 PREP_MIN = float(os.getenv("PREP_MIN_SECONDS", "2"))
 PREP_MAX = float(os.getenv("PREP_MAX_SECONDS", "4"))
 MAX_QUANTITY = 10
@@ -35,19 +42,34 @@ ORDERS_FAILED = Counter(
 ORDERS_DUPLICATE = Counter(
     "coffee_orders_duplicate_total", "Скільки повторних доставок пропущено"
 )
+DB_ERRORS = Counter("coffee_db_errors_total", "Скільки разів не вдалося виконати запит до БД")
 PROCESSING_TIME = Histogram(
     "coffee_order_processing_seconds",
     "Час приготування одного замовлення",
     buckets=(1, 2, 3, 4, 5, 7, 10),
 )
+DB_INSERT_TIME = Histogram(
+    "coffee_db_insert_seconds",
+    "Час запису замовлення в PostgreSQL",
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1),
+)
+
+# Трейси надсилаються в Grafana Tempo.
+provider = TracerProvider(resource=Resource.create({"service.name": "barista-service"}))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=TEMPO_URL)))
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer("barista-service")
 
 db = None
 
 
-def init_db():
-    """Створює таблицю замовлень, якщо її ще немає."""
-    connection = sqlite3.connect(DB_PATH)
-    connection.execute(
+def ensure_db():
+    """Підключається до PostgreSQL, якщо з'єднання ще немає або воно втрачене."""
+    global db
+    if db is not None and not db.closed:
+        return db
+    db = psycopg.connect(DATABASE_URL, autocommit=True, connect_timeout=5)
+    db.execute(
         """CREATE TABLE IF NOT EXISTS orders (
                id TEXT PRIMARY KEY,
                drink TEXT NOT NULL,
@@ -57,33 +79,32 @@ def init_db():
                done_at TEXT NOT NULL
            )"""
     )
-    connection.commit()
-    return connection
+    return db
 
 
 def already_done(order_id):
     """Перевіряє, чи замовлення вже виконано (захист від повторної доставки)."""
-    return db.execute("SELECT 1 FROM orders WHERE id = ?", (order_id,)).fetchone() is not None
+    return ensure_db().execute("SELECT 1 FROM orders WHERE id = %s", (order_id,)).fetchone() is not None
 
 
 def save_order(order_id, order, created_at):
-    db.execute(
-        "INSERT OR IGNORE INTO orders VALUES (?, ?, ?, ?, ?, ?)",
-        (
-            order_id,
-            order["drink"],
-            order["quantity"],
-            order.get("customer"),
-            created_at,
-            datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        ),
-    )
-    db.commit()
+    with tracer.start_as_current_span("postgres insert", kind=trace.SpanKind.CLIENT), DB_INSERT_TIME.time():
+        ensure_db().execute(
+            "INSERT INTO orders VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+            (
+                order_id,
+                order["drink"],
+                order["quantity"],
+                order.get("customer"),
+                created_at,
+                datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            ),
+        )
 
 
 def is_text(value):
-    """Перевіряє, що значення є рядком, який можна зберегти в UTF-8."""
-    if not isinstance(value, str):
+    """Перевіряє, що значення є рядком без символу NUL, який можна зберегти в UTF-8."""
+    if not isinstance(value, str) or "\x00" in value:
         return False
     try:
         value.encode("utf-8")
@@ -98,7 +119,6 @@ def parse_message(body):
         message = json.loads(body)
     except RecursionError as error:
         raise ValueError("JSON має надто глибоку вкладеність") from error
-
     if not isinstance(message, dict) or not isinstance(message.get("data"), dict):
         raise ValueError("повідомлення має містити об'єкт data")
 
@@ -122,6 +142,7 @@ def parse_message(body):
 
 def handle_order(channel, method, properties, body):
     """Обробляє одне повідомлення з черги."""
+    global db
     try:
         order_id, order, created_at = parse_message(body)
     except ValueError as error:
@@ -132,20 +153,38 @@ def handle_order(channel, method, properties, body):
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         return
 
-    if already_done(order_id):
-        ORDERS_DUPLICATE.inc()
+    # Продовжуємо трейс, який почав order-service.
+    context = extract(properties.headers or {})
+    with tracer.start_as_current_span("process order", context=context, kind=trace.SpanKind.CONSUMER) as span:
+        span.set_attribute("order.id", order_id)
+        span.set_attribute("order.drink", order["drink"])
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        try:
+            if already_done(order_id):
+                ORDERS_DUPLICATE.inc()
+                channel.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
+            with tracer.start_as_current_span("prepare drink"), PROCESSING_TIME.time():
+                time.sleep(random.uniform(PREP_MIN, PREP_MAX))  # імітація приготування
+
+            save_order(order_id, order, created_at)
+        except psycopg.Error as error:
+            # База недоступна: повертаємо замовлення в чергу, щоб виконати його пізніше.
+            DB_ERRORS.inc()
+            print(f"Помилка PostgreSQL, замовлення повернуто в чергу: {error!r} trace_id={trace_id}")
+            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            if db is not None and not db.closed:
+                db.close()
+            db = None
+            time.sleep(3)
+            return
+
+        ORDERS_PROCESSED.labels(drink=order["drink"]).inc()
+
+        # Підтвердження надсилаємо лише після збереження: при збої замовлення не загубиться.
         channel.basic_ack(delivery_tag=method.delivery_tag)
-        return
-
-    with PROCESSING_TIME.time():
-        time.sleep(random.uniform(PREP_MIN, PREP_MAX))  # імітація приготування
-
-    save_order(order_id, order, created_at)
-    ORDERS_PROCESSED.labels(drink=order["drink"]).inc()
-
-    # Підтвердження надсилаємо лише після збереження: при збої замовлення не загубиться.
-    channel.basic_ack(delivery_tag=method.delivery_tag)
-    print(f"Готово: {order['drink']} x{order['quantity']} ({order_id})")
+        print(f"Готово: {order['drink']} x{order['quantity']} ({order_id}) trace_id={trace_id}")
 
 
 def consume():
@@ -164,14 +203,16 @@ def consume():
 
 
 def main():
-    global db
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    db = init_db()
     start_http_server(8001)
 
     while True:
         try:
+            ensure_db()
             consume()
+        except psycopg.Error as error:
+            print(f"PostgreSQL недоступний, нова спроба через 3 секунди: {type(error).__name__}")
+            time.sleep(3)
         except (pika.exceptions.AMQPConnectionError, OSError):
             # OSError охоплює випадок, коли адресу rabbitmq неможливо знайти в мережі Docker.
             print("RabbitMQ недоступний, нова спроба через 3 секунди")

@@ -86,6 +86,89 @@
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
         { "color": "green", "value": null }, { "color": "red", "value": 1 }
       ] } }, "overrides": [] }
+    },
+    {
+      "id": 10, "type": "row", "title": "База даних PostgreSQL", "collapsed": false,
+      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 11, "type": "stat", "title": "Стан PostgreSQL",
+      "gridPos": { "x": 0, "y": 29, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "pg_up" }],
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": {
+        "0": { "text": "НЕ ПРАЦЮЄ", "color": "red" }, "1": { "text": "працює", "color": "green" }
+      } }] }, "overrides": [] }
+    },
+    {
+      "id": 12, "type": "stat", "title": "Активні з'єднання",
+      "gridPos": { "x": 6, "y": 29, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(pg_stat_activity_count{datname=\"coffee\"})" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 13, "type": "stat", "title": "Розмір бази",
+      "gridPos": { "x": 12, "y": 29, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "pg_database_size_bytes{datname=\"coffee\"}" }],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 14, "type": "stat", "title": "Помилки запитів до БД за період",
+      "gridPos": { "x": 18, "y": 29, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum(increase(coffee_db_errors_total[$__range])))" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ] } }, "overrides": [] }
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "Операції в БД за секунду",
+      "gridPos": { "x": 0, "y": 34, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rate(pg_stat_database_xact_commit{datname=\"coffee\"}[1m])", "legendFormat": "транзакції" },
+        { "refId": "B", "expr": "rate(pg_stat_database_tup_inserted{datname=\"coffee\"}[1m])", "legendFormat": "вставлені рядки" }
+      ],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 16, "type": "timeseries", "title": "Середній час запису в БД",
+      "gridPos": { "x": 12, "y": 34, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "refId": "A",
+        "expr": "rate(coffee_db_insert_seconds_sum[1m]) / rate(coffee_db_insert_seconds_count[1m])",
+        "legendFormat": "запис"
+      }],
+      "fieldConfig": { "defaults": { "min": 0, "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 17, "type": "row", "title": "Логи та трейси", "collapsed": false,
+      "gridPos": { "x": 0, "y": 42, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 18, "type": "logs", "title": "Логи сервісів (Loki)",
+      "gridPos": { "x": 0, "y": 43, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [{ "refId": "A", "expr": "{service=~\"order-service|barista-service|auth-service\"}", "queryType": "range" }],
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 19, "type": "table", "title": "Трейси замовлень (Tempo)",
+      "gridPos": { "x": 0, "y": 53, "w": 24, "h": 9 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [{ "refId": "A", "queryType": "traceql", "query": "{resource.service.name=\"order-service\"}", "limit": 20, "tableType": "traces" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 20, "type": "stat", "title": "Спроби входу за період",
+      "gridPos": { "x": 0, "y": 62, "w": 24, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum by (result) (increase(coffee_auth_logins_total[$__range])))", "legendFormat": "{{result}}" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
     }
   ]
 }

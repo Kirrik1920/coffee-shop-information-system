@@ -3,9 +3,18 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from functools import wraps
 
+import jwt
 import pika
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, g, jsonify, request
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.propagate import inject
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from waitress import serve
 
@@ -14,6 +23,8 @@ RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
 RABBIT_USER = os.getenv("RABBIT_USER", "guest")
 RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
 RABBIT_VHOST = os.getenv("RABBIT_VHOST", "/")
+JWT_SECRET = os.environ["JWT_SECRET"]
+TEMPO_URL = os.getenv("TEMPO_URL", "http://tempo:4318/v1/traces")
 
 # Exchange, черги та зв'язки створює RabbitMQ із файлу rabbitmq/definitions.json.
 EXCHANGE = "coffee"
@@ -30,16 +41,46 @@ ORDERS_CREATED = Counter(
 PUBLISH_FAILED = Counter(
     "coffee_orders_publish_failed_total", "Скільки замовлень не вдалося передати в чергу"
 )
+UNAUTHORIZED = Counter(
+    "coffee_orders_unauthorized_total", "Скільки запитів відхилено без дійсного токена"
+)
 for drink_name in MENU:
     ORDERS_CREATED.labels(drink=drink_name)  # щоб метрика була видна ще до першого замовлення
 
+# Трейси надсилаються в Grafana Tempo.
+provider = TracerProvider(resource=Resource.create({"service.name": "order-service"}))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=TEMPO_URL)))
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer("order-service")
+
 app = Flask(__name__)
 app.json.ensure_ascii = False
+FlaskInstrumentor().instrument_app(app, excluded_urls="health,metrics")
+
+
+def require_token(handler):
+    """Пропускає лише запити з дійсним токеном від auth-service."""
+
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        header = request.headers.get("Authorization", "")
+        try:
+            if not header.startswith("Bearer "):
+                raise jwt.InvalidTokenError
+            g.user = jwt.decode(
+                header[7:], JWT_SECRET, algorithms=["HS256"], options={"require": ["exp", "sub"]}
+            )
+        except jwt.InvalidTokenError:
+            UNAUTHORIZED.inc()
+            return jsonify(error="Потрібен дійсний токен. Отримайте його в auth-service"), 401
+        return handler(*args, **kwargs)
+
+    return wrapper
 
 
 def is_text(value):
-    """Перевіряє, що значення є рядком, який можна передати в UTF-8."""
-    if not isinstance(value, str):
+    """Перевіряє, що значення є рядком без символу NUL, який можна передати в UTF-8."""
+    if not isinstance(value, str) or "\x00" in value:
         return False
     try:
         value.encode("utf-8")
@@ -55,19 +96,23 @@ def publish(message):
         host=RABBIT_HOST, virtual_host=RABBIT_VHOST, credentials=credentials
     )
 
-    with pika.BlockingConnection(parameters) as connection:
-        channel = connection.channel()
-        channel.confirm_delivery()
-        channel.basic_publish(
-            exchange=EXCHANGE,
-            routing_key=ROUTING_KEY,
-            body=json.dumps(message, ensure_ascii=False).encode("utf-8"),
-            properties=pika.BasicProperties(
-                content_type="application/json",
-                delivery_mode=2,  # повідомлення зберігається на диску брокера
-            ),
-            mandatory=True,
-        )
+    with tracer.start_as_current_span("rabbitmq publish", kind=trace.SpanKind.PRODUCER):
+        headers = {}
+        inject(headers)  # контекст трейса передається разом із повідомленням
+        with pika.BlockingConnection(parameters) as connection:
+            channel = connection.channel()
+            channel.confirm_delivery()
+            channel.basic_publish(
+                exchange=EXCHANGE,
+                routing_key=ROUTING_KEY,
+                body=json.dumps(message, ensure_ascii=False).encode("utf-8"),
+                properties=pika.BasicProperties(
+                    content_type="application/json",
+                    delivery_mode=2,  # повідомлення зберігається на диску брокера
+                    headers=headers,
+                ),
+                mandatory=True,
+            )
 
 
 @app.get("/health")
@@ -76,11 +121,13 @@ def health():
 
 
 @app.get("/menu")
+@require_token
 def menu():
     return jsonify(MENU)
 
 
 @app.post("/orders")
+@require_token
 def create_order():
     try:
         data = request.get_json(silent=True)
@@ -120,6 +167,8 @@ def create_order():
         return jsonify(error="Черга замовлень тимчасово недоступна"), 503
 
     ORDERS_CREATED.labels(drink=drink).inc()
+    trace_id = format(trace.get_current_span().get_span_context().trace_id, "032x")
+    print(f"Прийнято: {drink} x{quantity} ({message['id']}) користувач={g.user['sub']} trace_id={trace_id}")
     return jsonify(order_id=message["id"], status="accepted"), 202
 
 

@@ -47,10 +47,10 @@
   <text x="800" y="342">Метрика часу приготування</text>
   <text x="800" y="372">Приготоване замовлення</text>
   <text x="580" y="482">Повторне замовлення</text>
-  <text x="1030" y="467">Запис у SQLite</text>
+  <text x="1030" y="467">Запис у PostgreSQL</text>
   <text x="1030" y="497">Підтвердження (ack)</text>
   <text x="222" y="222">pika</text>
-  <text x="462" y="342">SQLite</text>
+  <text x="462" y="342">PostgreSQL</text>
   <text x="703" y="456">barista-service</text>
-  <text x="935" y="612" text-anchor="middle">SQLite, pika</text>
+  <text x="935" y="612" text-anchor="middle">PostgreSQL, pika</text>
 </svg>

@@ -37,6 +37,24 @@ groups:
           summary: "order-service не працює"
           description: "Система не може приймати нові замовлення."
 
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL не працює"
+          description: "Виконані замовлення неможливо зберегти, вони очікують у черзі."
+
+      - alert: AuthServiceDown
+        expr: up{job="auth-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "auth-service не працює"
+          description: "Користувачі не можуть отримати токен для входу."
+
       - alert: RabbitMQDown
         expr: up{job="rabbitmq"} == 0
         for: 30s

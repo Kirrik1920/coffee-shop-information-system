@@ -1,6 +1,6 @@
-# Кав'ярня: система обробки замовлень
+# Кав'ярня: інформаційна система обробки замовлень
 
-Навчальний проєкт із мікросервісів: два сервіси на Python, RabbitMQ, Prometheus, Grafana та Alertmanager.
+Навчальний проєкт із дисципліни «Інформаційні системи»: сервіси на Python, PostgreSQL, сервер авторизації, RabbitMQ, Prometheus, Grafana, Loki, Tempo та Alertmanager.
 
 ## Запуск
 
@@ -18,20 +18,28 @@ docker compose ps
 
 ## Надіслати тестові замовлення
 
+Скрипт сам увійде в систему як `cashier`.
+
 ```
 powershell -ExecutionPolicy Bypass -File scripts\send-orders.ps1 -Count 20 -DelayMs 500
 ```
 
 ## Де дивитись результат
 
-| Що | Адреса |
-|---|---|
-| Grafana, дашборд | http://localhost:3000 |
-| RabbitMQ, вхід `coffee` / `coffee_pass` | http://localhost:15672 |
-| Prometheus, цілі збору | http://localhost:9090/targets |
-| Prometheus, алерти | http://localhost:9090/alerts |
-| Alertmanager | http://localhost:9093 |
-| Меню | http://localhost:8000/menu |
+| Що | Адреса | Вхід |
+|---|---|---|
+| Grafana, дашборд | http://localhost:3000 | `admin` / `coffee_grafana` |
+| RabbitMQ | http://localhost:15672 | `coffee` / `coffee_pass` |
+| Prometheus, цілі збору | http://localhost:9090/targets | без пароля |
+| Prometheus, алерти | http://localhost:9090/alerts | без пароля |
+| Alertmanager | http://localhost:9093 | без пароля |
+
+Паролі навчальні та призначені лише для локального запуску.
+
+Дашборд показує замовлення, чергу, роботу PostgreSQL, логи й трейси. Детальніше логи та трейси можна дослідити в Grafana: **Explore**, далі джерело **Loki** або **Tempo**.
+
+- Логи: `{service="barista-service"}`
+- Трейси: `{resource.service.name="order-service"}`
 
 Виконані замовлення в базі:
 
@@ -39,13 +47,28 @@ powershell -ExecutionPolicy Bypass -File scripts\send-orders.ps1 -Count 20 -Dela
 docker compose exec barista-service python show_orders.py
 ```
 
+## Авторизація вручну
+
+Отримати токен:
+
+```
+$t = (Invoke-RestMethod -Method Post -Uri http://localhost:8002/login -ContentType 'application/json' -Body '{"username":"cashier","password":"cashier_pass"}').access_token
+```
+
+Зробити замовлення:
+
+```
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/orders -Headers @{Authorization="Bearer $t"} -ContentType 'application/json' -Body '{"drink":"latte","quantity":1}'
+```
+
 ## Демонстрація на захисті
 
-1. Зупини бариста: `docker compose stop barista-service`
-2. Надішли замовлення: `powershell -ExecutionPolicy Bypass -File scripts\send-orders.ps1 -Count 15 -DelayMs 200`
-3. У Grafana черга зросте, а за хвилину на http://localhost:9090/alerts спрацюють алерти.
-4. Запусти бариста: `docker compose start barista-service`
-5. Черга спаде, а всі замовлення з'являться в базі.
+1. Спробуй замовити без токена: відповідь 401.
+2. Зупини бариста: `docker compose stop barista-service`
+3. Надішли замовлення: `powershell -ExecutionPolicy Bypass -File scripts\send-orders.ps1 -Count 15 -DelayMs 200`
+4. У Grafana черга зросте, а за хвилину на http://localhost:9090/alerts спрацюють алерти.
+5. Запусти бариста: `docker compose start barista-service`
+6. Черга спаде, замовлення з'являться в PostgreSQL, логах і трейсах.
 
 ## Зупинка
 
@@ -59,11 +82,14 @@ docker compose down
 
 | Тека | Що всередині |
 |---|---|
-| `docs` | вимоги, архітектура, діаграми, тести, контракт сервісів, трасування, аналіз, заготовка звіту |
+| `docs` | вимоги, архітектура, діаграми, тести, контракт сервісів, трасування, аналіз, звіт |
+| `services/auth-service` | сервер авторизації |
 | `services/order-service` | приймання замовлень |
-| `services/barista-service` | обробка замовлень і база |
-| `prometheus` | збір метрик і правила алертів |
+| `services/barista-service` | обробка замовлень і запис у PostgreSQL |
 | `rabbitmq` | користувачі, virtual host, черги та зв'язки |
+| `prometheus` | збір метрик і правила алертів |
 | `alertmanager` | обробка алертів |
-| `grafana` | джерело даних і готовий дашборд |
+| `loki` | збір і зберігання логів |
+| `tempo` | зберігання трейсів |
+| `grafana` | джерела даних і готовий дашборд |
 | `scripts` | надсилання тестових замовлень |

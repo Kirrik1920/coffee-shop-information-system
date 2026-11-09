@@ -10,7 +10,7 @@ actor "Адміністратор" as admin
 rectangle "Система обробки\nзамовлень кав'ярні" as system #LightBlue
 rectangle "Поштовий сервіс\n(Gmail, необов'язково)" as mail #LightGray
 
-client --> system : оформлює замовлення
+client --> system : входить, оформлює замовлення
 owner --> system : дивиться графіки
 admin --> system : запускає, перевіряє стан
 system --> mail : надсилає алерти

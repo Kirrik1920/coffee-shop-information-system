@@ -23,10 +23,10 @@
 
   <text x="60" y="225">Замовлення клієнта</text>
   <text x="600" y="192">Виконане замовлення у базі</text>
-  <text x="600" y="227">Графіки стану роботи</text>
+  <text x="600" y="227">Графіки, логи, трейси</text>
   <text x="600" y="262">Алерти</text>
   <text x="392" y="70" text-anchor="end">Меню напоїв</text>
-  <text x="508" y="70">Правила алертів</text>
-  <text x="392" y="432" text-anchor="end">Python-сервіси, RabbitMQ</text>
-  <text x="508" y="432">Prometheus, Grafana, Docker</text>
+  <text x="508" y="70">Правила алертів, права доступу</text>
+  <text x="392" y="432" text-anchor="end">Python-сервіси, RabbitMQ, PostgreSQL</text>
+  <text x="508" y="432">Prometheus, Loki, Tempo, Grafana, Docker</text>
 </svg>

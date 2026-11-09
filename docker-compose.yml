@@ -4,9 +4,35 @@ x-rabbit-env: &rabbit-env
   RABBIT_HOST: rabbitmq
   RABBIT_VHOST: coffee
 
+# Навчальні значення для локального запуску. У реальній системі їх зберігають окремо.
+x-jwt-env: &jwt-env
+  JWT_SECRET: coffee-shop-study-secret-key-at-least-32-bytes
+
+# Логи сервісів із цією міткою збирає Promtail.
+x-log-labels: &log-labels
+  logging: promtail
+
 services:
+  # --- Дані та обмін повідомленнями ---
+  postgres:
+    image: postgres:16-alpine
+    labels: *log-labels
+    environment:
+      POSTGRES_DB: coffee
+      POSTGRES_USER: barista_service
+      POSTGRES_PASSWORD: barista_db_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barista_service -d coffee"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:4.0-management
+    labels: *log-labels
     ports:
       - "127.0.0.1:15672:15672" # веб-панель
     volumes:
@@ -21,10 +47,28 @@ services:
       retries: 12
     restart: unless-stopped
 
+  # --- Сервіси застосунку ---
+  auth-service:
+    build: ./services/auth-service
+    labels: *log-labels
+    environment:
+      <<: *jwt-env
+      AUTH_DB_PATH: /data/users.db
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin_pass_123
+      CASHIER_USERNAME: cashier
+      CASHIER_PASSWORD: cashier_pass
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - auth_data:/data
+    restart: unless-stopped
+
   order-service:
     build: ./services/order-service
+    labels: *log-labels
     environment:
-      <<: *rabbit-env
+      <<: [*rabbit-env, *jwt-env]
       RABBIT_USER: order_service
       RABBIT_PASS: order_pass
     ports:
@@ -36,19 +80,30 @@ services:
 
   barista-service:
     build: ./services/barista-service
+    labels: *log-labels
     environment:
       <<: *rabbit-env
       RABBIT_USER: barista_service
       RABBIT_PASS: barista_pass
-      DB_PATH: /data/orders.db
+      DATABASE_URL: postgresql://barista_service:barista_db_pass@postgres:5432/coffee
       PREP_MIN_SECONDS: "2"
       PREP_MAX_SECONDS: "4"
     ports:
       - "127.0.0.1:8001:8001" # метрики
-    volumes:
-      - barista_data:/data
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Метрики ---
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: postgresql://barista_service:barista_db_pass@postgres:5432/coffee?sslmode=disable
+    depends_on:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
@@ -79,27 +134,66 @@ services:
       - alertmanager_data:/alertmanager
     restart: unless-stopped
 
+  # --- Логи ---
+  loki:
+    image: grafana/loki:3.1.1
+    user: "0"
+    command: ["-config.file=/etc/loki/loki.yml"]
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    volumes:
+      - ./loki/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # --- Трейси ---
+  tempo:
+    image: grafana/tempo:2.9.0
+    user: "0"
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    ports:
+      - "127.0.0.1:3200:3200"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/tmp/tempo
+    restart: unless-stopped
+
+  # --- Візуалізація ---
   grafana:
     image: grafana/grafana:11.2.0
     environment:
-      # Вхід без пароля, як у прикладі курсу. Порт доступний лише з цього комп'ютера.
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
-      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: coffee_grafana
+      GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/coffee-shop.json
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
+      - grafana_login_data:/var/lib/grafana
     depends_on:
       - prometheus
+      - loki
+      - tempo
     restart: unless-stopped
 
 volumes:
+  postgres_data:
   rabbitmq_data:
-  barista_data:
+  auth_data:
   prometheus_data:
   alertmanager_data:
-  grafana_data:
+  loki_data:
+  tempo_data:
+  grafana_login_data:
