@@ -36,6 +36,17 @@ app = Flask(__name__)
 app.json.ensure_ascii = False
 
 
+def is_text(value):
+    """Перевіряє, що значення є рядком, який можна передати в UTF-8."""
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def publish(message):
     """Передає повідомлення в RabbitMQ і чекає підтвердження від брокера."""
     credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
@@ -70,17 +81,23 @@ def menu():
 
 @app.post("/orders")
 def create_order():
-    data = request.get_json(silent=True)
+    try:
+        data = request.get_json(silent=True)
+    except RecursionError:  # JSON із надто глибокою вкладеністю
+        data = None
     if not isinstance(data, dict):
         return jsonify(error="Потрібен JSON із полем drink"), 400
 
     drink = data.get("drink")
     quantity = data.get("quantity", 1)
+    customer = data.get("customer", "гість")
 
     if not isinstance(drink, str) or drink not in MENU:
         return jsonify(error="Такого напою немає в меню", menu=list(MENU)), 400
     if type(quantity) is not int or not 1 <= quantity <= MAX_QUANTITY:
         return jsonify(error=f"Кількість має бути від 1 до {MAX_QUANTITY}"), 400
+    if not is_text(customer):
+        return jsonify(error="Поле customer має бути текстом"), 400
 
     # Формат повідомлення взято з лекції 9: id, name, time, data.
     message = {
@@ -90,7 +107,7 @@ def create_order():
         "data": {
             "drink": drink,
             "quantity": quantity,
-            "customer": str(data.get("customer", "гість")),
+            "customer": customer,
         },
     }
 

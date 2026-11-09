@@ -18,6 +18,7 @@ RABBIT_VHOST = os.getenv("RABBIT_VHOST", "/")
 DB_PATH = os.getenv("DB_PATH", "/data/orders.db")
 PREP_MIN = float(os.getenv("PREP_MIN_SECONDS", "2"))
 PREP_MAX = float(os.getenv("PREP_MAX_SECONDS", "4"))
+MAX_QUANTITY = 10
 
 # Черга та її зв'язки створюються RabbitMQ із файлу rabbitmq/definitions.json.
 QUEUE = "orders"
@@ -80,9 +81,24 @@ def save_order(order_id, order, created_at):
     db.commit()
 
 
+def is_text(value):
+    """Перевіряє, що значення є рядком, який можна зберегти в UTF-8."""
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def parse_message(body):
     """Перевіряє повідомлення за контрактом. Якщо воно неправильне, викликає ValueError."""
-    message = json.loads(body)
+    try:
+        message = json.loads(body)
+    except RecursionError as error:
+        raise ValueError("JSON має надто глибоку вкладеність") from error
+
     if not isinstance(message, dict) or not isinstance(message.get("data"), dict):
         raise ValueError("повідомлення має містити об'єкт data")
 
@@ -90,15 +106,15 @@ def parse_message(body):
     created_at = message.get("time")
     order = message["data"]
 
-    if not isinstance(order_id, str) or not order_id:
+    if not is_text(order_id) or not order_id:
         raise ValueError("поле id має бути непорожнім рядком")
-    if not isinstance(order.get("drink"), str) or not order["drink"]:
+    if not is_text(order.get("drink")) or not order["drink"]:
         raise ValueError("поле drink має бути непорожнім рядком")
-    if type(order.get("quantity")) is not int or order["quantity"] < 1:
-        raise ValueError("поле quantity має бути цілим числом від 1")
-    if not isinstance(order.get("customer"), (str, type(None))):
+    if type(order.get("quantity")) is not int or not 1 <= order["quantity"] <= MAX_QUANTITY:
+        raise ValueError(f"поле quantity має бути цілим числом від 1 до {MAX_QUANTITY}")
+    if order.get("customer") is not None and not is_text(order["customer"]):
         raise ValueError("поле customer має бути рядком")
-    if not isinstance(created_at, (str, type(None))):
+    if created_at is not None and not is_text(created_at):
         raise ValueError("поле time має бути рядком")
 
     return order_id, order, created_at
