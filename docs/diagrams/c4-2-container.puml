@@ -9,7 +9,7 @@ actor "Власник" as owner
 
 rectangle "Система обробки замовлень кав'ярні" {
   rectangle "order-service\n[Python, Flask]\nприймає замовлення" as order #LightBlue
-  queue "RabbitMQ\n[черга orders]\nпередає замовлення" as rabbit #Moccasin
+  queue "RabbitMQ\n[vhost coffee]\nчерги orders, orders.invalid" as rabbit #Moccasin
   rectangle "barista-service\n[Python, pika]\nготує замовлення" as barista #LightBlue
   database "SQLite\nвиконані замовлення" as db #LightGray
   rectangle "Prometheus\nзбирає метрики" as prom #PaleGreen

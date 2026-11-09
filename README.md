@@ -63,6 +63,7 @@ docker compose down
 | `services/order-service` | приймання замовлень |
 | `services/barista-service` | обробка замовлень і база |
 | `prometheus` | збір метрик і правила алертів |
+| `rabbitmq` | користувачі, virtual host, черги та зв'язки |
 | `alertmanager` | обробка алертів |
 | `grafana` | джерело даних і готовий дашборд |
 | `scripts` | надсилання тестових замовлень |

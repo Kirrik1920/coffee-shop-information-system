@@ -13,9 +13,10 @@ from waitress import serve
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
 RABBIT_USER = os.getenv("RABBIT_USER", "guest")
 RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
+RABBIT_VHOST = os.getenv("RABBIT_VHOST", "/")
 
+# Exchange, черги та зв'язки створює RabbitMQ із файлу rabbitmq/definitions.json.
 EXCHANGE = "coffee"
-QUEUE = "orders"
 ROUTING_KEY = "orders.created"
 
 MENU = {"espresso": 45, "americano": 50, "cappuccino": 65, "latte": 70, "tea": 35}
@@ -38,13 +39,12 @@ app.json.ensure_ascii = False
 def publish(message):
     """Передає повідомлення в RabbitMQ і чекає підтвердження від брокера."""
     credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
-    parameters = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
+    parameters = pika.ConnectionParameters(
+        host=RABBIT_HOST, virtual_host=RABBIT_VHOST, credentials=credentials
+    )
 
     with pika.BlockingConnection(parameters) as connection:
         channel = connection.channel()
-        channel.exchange_declare(exchange=EXCHANGE, exchange_type="direct", durable=True)
-        channel.queue_declare(queue=QUEUE, durable=True)
-        channel.queue_bind(queue=QUEUE, exchange=EXCHANGE, routing_key=ROUTING_KEY)
         channel.confirm_delivery()
         channel.basic_publish(
             exchange=EXCHANGE,

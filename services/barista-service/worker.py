@@ -14,13 +14,13 @@ from prometheus_client import Counter, Histogram, start_http_server
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
 RABBIT_USER = os.getenv("RABBIT_USER", "guest")
 RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
+RABBIT_VHOST = os.getenv("RABBIT_VHOST", "/")
 DB_PATH = os.getenv("DB_PATH", "/data/orders.db")
 PREP_MIN = float(os.getenv("PREP_MIN_SECONDS", "2"))
 PREP_MAX = float(os.getenv("PREP_MAX_SECONDS", "4"))
 
-EXCHANGE = "coffee"
+# Черга та її зв'язки створюються RabbitMQ із файлу rabbitmq/definitions.json.
 QUEUE = "orders"
-ROUTING_KEY = "orders.created"
 
 # Метрики, які забирає Prometheus.
 ORDERS_PROCESSED = Counter(
@@ -89,7 +89,8 @@ def handle_order(channel, method, properties, body):
         drink = order["drink"]
         quantity = int(order["quantity"])
     except (ValueError, KeyError, TypeError) as error:
-        # Зіпсоване повідомлення немає сенсу повертати в чергу.
+        # Зіпсоване повідомлення не повертаємо в чергу orders:
+        # RabbitMQ перекладе його в окрему чергу orders.invalid для аналізу.
         ORDERS_FAILED.inc()
         print(f"Відхилено повідомлення: {error!r}")
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
@@ -113,13 +114,12 @@ def handle_order(channel, method, properties, body):
 
 def consume():
     credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
-    parameters = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
+    parameters = pika.ConnectionParameters(
+        host=RABBIT_HOST, virtual_host=RABBIT_VHOST, credentials=credentials
+    )
 
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
-    channel.exchange_declare(exchange=EXCHANGE, exchange_type="direct", durable=True)
-    channel.queue_declare(queue=QUEUE, durable=True)
-    channel.queue_bind(queue=QUEUE, exchange=EXCHANGE, routing_key=ROUTING_KEY)
     channel.basic_qos(prefetch_count=1)  # бариста бере по одному замовленню
     channel.basic_consume(queue=QUEUE, on_message_callback=handle_order)
 

@@ -20,5 +20,6 @@ scrape_configs:
       - targets: ["barista-service:8001"]
 
   - job_name: rabbitmq
+    metrics_path: /metrics/per-object # окремі значення для кожної черги
     static_configs:
       - targets: ["rabbitmq:15692"]

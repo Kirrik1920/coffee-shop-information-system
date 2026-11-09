@@ -1,0 +1,28 @@
+{
+  "users": [
+    { "name": "coffee", "password": "coffee_pass", "tags": ["administrator"] },
+    { "name": "order_service", "password": "order_pass", "tags": [] },
+    { "name": "barista_service", "password": "barista_pass", "tags": [] }
+  ],
+  "vhosts": [{ "name": "coffee" }],
+  "permissions": [
+    { "user": "coffee", "vhost": "coffee", "configure": ".*", "write": ".*", "read": ".*" },
+    { "user": "order_service", "vhost": "coffee", "configure": "^$", "write": "^coffee$", "read": "^$" },
+    { "user": "barista_service", "vhost": "coffee", "configure": "^$", "write": "^$", "read": "^orders$" }
+  ],
+  "exchanges": [
+    { "name": "coffee", "vhost": "coffee", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "coffee.dead", "vhost": "coffee", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "queues": [
+    {
+      "name": "orders", "vhost": "coffee", "durable": true, "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "coffee.dead", "x-dead-letter-routing-key": "orders.invalid" }
+    },
+    { "name": "orders.invalid", "vhost": "coffee", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "coffee", "vhost": "coffee", "destination": "orders", "destination_type": "queue", "routing_key": "orders.created", "arguments": {} },
+    { "source": "coffee.dead", "vhost": "coffee", "destination": "orders.invalid", "destination_type": "queue", "routing_key": "orders.invalid", "arguments": {} }
+  ]
+}

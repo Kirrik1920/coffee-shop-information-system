@@ -2,19 +2,18 @@ name: coffee-shop
 
 x-rabbit-env: &rabbit-env
   RABBIT_HOST: rabbitmq
-  RABBIT_USER: coffee
-  RABBIT_PASS: coffee_pass
+  RABBIT_VHOST: coffee
 
 services:
   rabbitmq:
     image: rabbitmq:4.0-management
-    environment:
-      RABBITMQ_DEFAULT_USER: coffee
-      RABBITMQ_DEFAULT_PASS: coffee_pass
     ports:
       - "127.0.0.1:15672:15672" # веб-панель
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      # Користувачі, vhost, черги та зв'язки описані у файлі definitions.json.
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq/coffee.conf:/etc/rabbitmq/conf.d/20-coffee.conf:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -24,7 +23,10 @@ services:
 
   order-service:
     build: ./services/order-service
-    environment: *rabbit-env
+    environment:
+      <<: *rabbit-env
+      RABBIT_USER: order_service
+      RABBIT_PASS: order_pass
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -36,6 +38,8 @@ services:
     build: ./services/barista-service
     environment:
       <<: *rabbit-env
+      RABBIT_USER: barista_service
+      RABBIT_PASS: barista_pass
       DB_PATH: /data/orders.db
       PREP_MIN_SECONDS: "2"
       PREP_MAX_SECONDS: "4"

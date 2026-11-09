@@ -3,7 +3,7 @@
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
   </defs>
   <rect width="1100" height="640" fill="#fff"/>
-  <text x="550" y="28" text-anchor="middle" font-size="18" font-weight="bold">IDEF0, A0: декомпозиція функції «Обробляти замовлення кав'ярні»</text>
+  <text x="550" y="28" text-anchor="middle" font-size="18" font-weight="bold">IDEF0, A-1 (за стандартом A0): декомпозиція функції «Обробляти замовлення кав'ярні»</text>
 
   <g fill="#dbeafe" stroke="#222" stroke-width="2">
     <rect x="130" y="90" width="170" height="80"/>

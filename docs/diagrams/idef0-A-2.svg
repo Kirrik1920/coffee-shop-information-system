@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 640" font-family="Arial, sans-serif" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
+  </defs>
+  <rect width="1300" height="640" fill="#fff"/>
+  <text x="650" y="28" text-anchor="middle" font-size="18" font-weight="bold">IDEF0, A-2 (за стандартом A3): декомпозиція функції «Приготувати і зберегти»</text>
+
+  <g fill="#dbeafe" stroke="#222" stroke-width="2">
+    <rect x="130" y="90" width="170" height="80"/>
+    <rect x="370" y="210" width="170" height="80"/>
+    <rect x="610" y="330" width="170" height="80"/>
+    <rect x="850" y="450" width="170" height="80"/>
+  </g>
+  <g text-anchor="middle" font-weight="bold">
+    <text x="215" y="128">Отримати і</text><text x="215" y="146">перевірити формат</text>
+    <text x="455" y="248">Перевірити</text><text x="455" y="266">на повтор</text>
+    <text x="695" y="378">Приготувати</text>
+    <text x="935" y="488">Зберегти і</text><text x="935" y="506">підтвердити</text>
+  </g>
+  <g text-anchor="end" font-size="12">
+    <text x="295" y="165">A3.1</text><text x="535" y="285">A3.2</text><text x="775" y="405">A3.3</text><text x="1015" y="525">A3.4</text>
+  </g>
+
+  <g stroke="#222" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M20 130H128"/>
+    <path d="M300 105H1180"/>
+    <path d="M300 140H455V208"/>
+    <path d="M540 250H695V328"/>
+    <path d="M780 350H1180"/>
+    <path d="M780 380H935V448"/>
+    <path d="M540 275H570V490H848"/>
+    <path d="M1020 475H1180"/>
+    <path d="M1020 505H1180"/>
+    <path d="M215 50V88"/>
+    <path d="M215 225V172"/>
+    <path d="M455 345V292"/>
+    <path d="M695 465V412" transform="translate(0 -5)"/>
+    <path d="M935 590V532"/>
+  </g>
+
+  <text x="20" y="120">Замовлення</text>
+  <text x="20" y="150" font-size="12">у черзі</text>
+  <text x="222" y="62">Формат повідомлення</text>
+  <text x="620" y="97">Зіпсоване повідомлення (у чергу orders.invalid)</text>
+  <text x="315" y="132">Коректне замовлення</text>
+  <text x="560" y="242">Нове замовлення</text>
+  <text x="800" y="342">Метрика часу приготування</text>
+  <text x="800" y="372">Приготоване замовлення</text>
+  <text x="580" y="482">Повторне замовлення</text>
+  <text x="1030" y="467">Запис у SQLite</text>
+  <text x="1030" y="497">Підтвердження (ack)</text>
+  <text x="222" y="222">pika</text>
+  <text x="462" y="342">SQLite</text>
+  <text x="703" y="456">barista-service</text>
+  <text x="935" y="612" text-anchor="middle">SQLite, pika</text>
+</svg>

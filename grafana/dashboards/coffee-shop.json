@@ -11,7 +11,7 @@
       "id": 1, "type": "stat", "title": "Замовлень у черзі",
       "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages)" }],
+      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages{queue=\"orders\"})" }],
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
         { "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 10 }
       ] } }, "overrides": [] }
@@ -56,7 +56,7 @@
       "id": 6, "type": "timeseries", "title": "Довжина черги",
       "gridPos": { "x": 12, "y": 5, "w": 12, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages)", "legendFormat": "у черзі" }],
+      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages{queue=\"orders\"})", "legendFormat": "у черзі" }],
       "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
     },
     {
@@ -77,6 +77,15 @@
       "targets": [{ "refId": "A", "expr": "round(sum by (drink) (increase(coffee_orders_processed_total[$__range])))", "legendFormat": "{{drink}}" }],
       "options": { "orientation": "horizontal", "displayMode": "basic" },
       "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 9, "type": "stat", "title": "Зіпсовані повідомлення (orders.invalid)",
+      "gridPos": { "x": 0, "y": 23, "w": 24, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages{queue=\"orders.invalid\"})" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ] } }, "overrides": [] }
     }
   ]
 }

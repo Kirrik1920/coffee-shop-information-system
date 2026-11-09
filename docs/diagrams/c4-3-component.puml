@@ -20,5 +20,5 @@ handler --> storage : перевіряє, зберігає
 storage --> db : SQL
 handler --> metrics : оновлює лічильники
 prom --> metrics : HTTP :8001/metrics
-handler --> rabbit : підтвердження (ack)
+handler --> rabbit : ack або nack
 @enduml

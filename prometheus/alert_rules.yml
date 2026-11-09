@@ -2,13 +2,22 @@ groups:
   - name: coffee_shop
     rules:
       - alert: OrdersQueueTooLong
-        expr: sum(rabbitmq_queue_messages) > 10
+        expr: sum(rabbitmq_queue_messages{queue="orders"}) > 10
         for: 30s
         labels:
           severity: warning
         annotations:
           summary: "Черга замовлень надто довга"
           description: "У черзі {{ $value }} замовлень, бариста не встигає."
+
+      - alert: InvalidOrdersDetected
+        expr: sum(rabbitmq_queue_messages{queue="orders.invalid"}) > 0
+        for: 5s
+        labels:
+          severity: warning
+        annotations:
+          summary: "З'явились зіпсовані повідомлення"
+          description: "У черзі orders.invalid {{ $value }} повідомлень, їх треба перевірити."
 
       - alert: BaristaServiceDown
         expr: up{job="barista-service"} == 0
