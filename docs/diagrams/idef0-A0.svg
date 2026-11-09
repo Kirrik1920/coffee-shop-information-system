@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" font-family="Arial, sans-serif" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
+  </defs>
+  <rect width="1100" height="640" fill="#fff"/>
+  <text x="550" y="28" text-anchor="middle" font-size="18" font-weight="bold">IDEF0, A0: декомпозиція функції «Обробляти замовлення кав'ярні»</text>
+
+  <g fill="#dbeafe" stroke="#222" stroke-width="2">
+    <rect x="130" y="90" width="170" height="80"/>
+    <rect x="370" y="200" width="170" height="80"/>
+    <rect x="610" y="310" width="170" height="80"/>
+    <rect x="610" y="470" width="170" height="80"/>
+    <rect x="850" y="470" width="170" height="80"/>
+  </g>
+  <g text-anchor="middle" font-weight="bold">
+    <text x="215" y="128">Прийняти і</text><text x="215" y="146">перевірити</text>
+    <text x="455" y="238">Поставити</text><text x="455" y="256">у чергу</text>
+    <text x="695" y="348">Приготувати</text><text x="695" y="366">і зберегти</text>
+    <text x="695" y="508">Зібрати</text><text x="695" y="526">метрики</text>
+    <text x="935" y="508">Показати і</text><text x="935" y="526">сповістити</text>
+  </g>
+  <g text-anchor="end" font-size="12">
+    <text x="295" y="165">A1</text><text x="535" y="275">A2</text><text x="775" y="385">A3</text><text x="775" y="545">A4</text><text x="1015" y="545">A5</text>
+  </g>
+
+  <g stroke="#222" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M20 130H128"/>
+    <path d="M300 130H455V198"/>
+    <path d="M540 240H695V308"/>
+    <path d="M780 350H1080"/>
+    <path d="M300 150H340V510H608"/>
+    <path d="M540 260H570V490H608"/>
+    <path d="M750 390V440H715V468"/>
+    <path d="M780 510H848"/>
+    <path d="M1020 490H1080"/>
+    <path d="M1020 530H1080"/>
+    <path d="M215 55V88"/>
+    <path d="M935 420V468"/>
+    <path d="M215 225V172"/>
+    <path d="M455 335V282"/>
+    <path d="M650 445V392"/>
+    <path d="M695 605V552"/>
+    <path d="M935 605V552"/>
+  </g>
+
+  <g>
+    <text x="20" y="120">Замовлення</text>
+    <text x="222" y="65">Меню напоїв</text>
+    <text x="330" y="122">Перевірене замовлення</text>
+    <text x="570" y="232">Замовлення в черзі</text>
+    <text x="830" y="342">Виконане замовлення</text>
+    <text x="350" y="505">Метрики замовлень</text>
+    <text x="562" y="482" text-anchor="end">Метрики черги</text>
+    <text x="758" y="430">Метрики приготування</text>
+    <text x="814" y="462" text-anchor="middle" font-size="13">Часові ряди</text>
+    <text x="945" y="430">Правила алертів</text>
+    <text x="1030" y="482" font-size="13">Графіки</text>
+    <text x="1030" y="522" font-size="13">Алерти</text>
+    <text x="222" y="222">order-service</text>
+    <text x="462" y="332">RabbitMQ</text>
+    <text x="642" y="442" text-anchor="end">barista-service</text>
+    <text x="695" y="625" text-anchor="middle">Prometheus</text>
+    <text x="935" y="625" text-anchor="middle">Grafana, Alertmanager</text>
+  </g>
+</svg>

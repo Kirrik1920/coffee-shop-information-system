@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" font-family="Arial, sans-serif" font-size="15">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
+  </defs>
+  <rect width="900" height="480" fill="#fff"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="bold">IDEF0, A-0: контекстна діаграма</text>
+
+  <rect x="330" y="170" width="240" height="130" fill="#dbeafe" stroke="#222" stroke-width="2"/>
+  <text x="450" y="228" text-anchor="middle" font-weight="bold">Обробляти замовлення</text>
+  <text x="450" y="250" text-anchor="middle" font-weight="bold">кав'ярні</text>
+  <text x="555" y="292" text-anchor="end">A0</text>
+
+  <g stroke="#222" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M60 235H328"/>
+    <path d="M572 200H840"/>
+    <path d="M572 235H840"/>
+    <path d="M572 270H840"/>
+    <path d="M400 80V168"/>
+    <path d="M500 80V168"/>
+    <path d="M400 410V302"/>
+    <path d="M500 410V302"/>
+  </g>
+
+  <text x="60" y="225">Замовлення клієнта</text>
+  <text x="600" y="192">Виконане замовлення у базі</text>
+  <text x="600" y="227">Графіки стану роботи</text>
+  <text x="600" y="262">Алерти</text>
+  <text x="392" y="70" text-anchor="end">Меню напоїв</text>
+  <text x="508" y="70">Правила алертів</text>
+  <text x="392" y="432" text-anchor="end">Python-сервіси, RabbitMQ</text>
+  <text x="508" y="432">Prometheus, Grafana, Docker</text>
+</svg>

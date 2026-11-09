@@ -1,0 +1,38 @@
+groups:
+  - name: coffee_shop
+    rules:
+      - alert: OrdersQueueTooLong
+        expr: sum(rabbitmq_queue_messages) > 10
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Черга замовлень надто довга"
+          description: "У черзі {{ $value }} замовлень, бариста не встигає."
+
+      - alert: BaristaServiceDown
+        expr: up{job="barista-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "barista-service не працює"
+          description: "Замовлення приймаються, але не виконуються."
+
+      - alert: OrderServiceDown
+        expr: up{job="order-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "order-service не працює"
+          description: "Система не може приймати нові замовлення."
+
+      - alert: RabbitMQDown
+        expr: up{job="rabbitmq"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "RabbitMQ не працює"
+          description: "Черга замовлень недоступна."

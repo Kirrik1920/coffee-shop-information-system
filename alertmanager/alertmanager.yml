@@ -1,0 +1,11 @@
+# Базовий варіант: алерти видно на сторінці http://localhost:9093.
+# Щоб отримувати листи, див. alertmanager.email.example.yml.
+route:
+  receiver: web-only
+  group_by: ["alertname"]
+  group_wait: 5s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: web-only

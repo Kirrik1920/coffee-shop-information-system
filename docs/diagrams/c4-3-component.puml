@@ -1,0 +1,24 @@
+@startuml
+title C4, рівень 3: Компоненти barista-service
+skinparam defaultTextAlignment center
+skinparam shadowing false
+
+queue "RabbitMQ\n(черга orders)" as rabbit #Moccasin
+database "SQLite" as db #LightGray
+rectangle "Prometheus" as prom #PaleGreen
+
+rectangle "barista-service" {
+  rectangle "Споживач черги\n(main, pika)" as consumer #LightBlue
+  rectangle "Обробник замовлення\n(handle_order)" as handler #LightBlue
+  rectangle "Сховище\n(already_done, save_order)" as storage #LightBlue
+  rectangle "Метрики\n(prometheus_client)" as metrics #LightBlue
+}
+
+rabbit --> consumer : повідомлення
+consumer --> handler : викликає
+handler --> storage : перевіряє, зберігає
+storage --> db : SQL
+handler --> metrics : оновлює лічильники
+prom --> metrics : HTTP :8001/metrics
+handler --> rabbit : підтвердження (ack)
+@enduml

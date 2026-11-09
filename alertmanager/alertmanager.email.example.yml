@@ -1,0 +1,24 @@
+# Необов'язковий варіант із листами на Gmail (лекція 5).
+# 1. Створи пароль застосунку в налаштуваннях безпеки Google-акаунта.
+# 2. Заміни значення нижче й збережи цей вміст у файл alertmanager.yml.
+# 3. Виконай: docker compose restart alertmanager
+# Не вставляй справжній пароль у звіт і не публікуй цей файл.
+global:
+  smtp_smarthost: "smtp.gmail.com:587"
+  smtp_from: "ТВОЯ_ПОШТА@gmail.com"
+  smtp_auth_username: "ТВОЯ_ПОШТА@gmail.com"
+  smtp_auth_password: "ПАРОЛЬ_ЗАСТОСУНКУ"
+  smtp_require_tls: true
+
+route:
+  receiver: gmail
+  group_by: ["alertname"]
+  group_wait: 5s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: gmail
+    email_configs:
+      - to: "ТВОЯ_ПОШТА@gmail.com"
+        send_resolved: true

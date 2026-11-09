@@ -1,0 +1,30 @@
+@startuml
+title C4, рівень 2: Контейнери
+skinparam defaultTextAlignment center
+skinparam shadowing false
+left to right direction
+
+actor "Клієнт" as client
+actor "Власник" as owner
+
+rectangle "Система обробки замовлень кав'ярні" {
+  rectangle "order-service\n[Python, Flask]\nприймає замовлення" as order #LightBlue
+  queue "RabbitMQ\n[черга orders]\nпередає замовлення" as rabbit #Moccasin
+  rectangle "barista-service\n[Python, pika]\nготує замовлення" as barista #LightBlue
+  database "SQLite\nвиконані замовлення" as db #LightGray
+  rectangle "Prometheus\nзбирає метрики" as prom #PaleGreen
+  rectangle "Grafana\nпоказує графіки" as grafana #PaleGreen
+  rectangle "Alertmanager\nобробляє алерти" as am #PaleGreen
+}
+
+client --> order : HTTP POST /orders
+order --> rabbit : AMQP
+rabbit --> barista : AMQP
+barista --> db : SQL
+prom --> order : HTTP /metrics
+prom --> barista : HTTP /metrics
+prom --> rabbit : HTTP /metrics
+grafana --> prom : PromQL
+prom --> am : алерти
+owner --> grafana : браузер
+@enduml

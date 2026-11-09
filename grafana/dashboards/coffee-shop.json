@@ -1,0 +1,82 @@
+{
+  "uid": "coffee-shop",
+  "title": "Кав'ярня: замовлення",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Замовлень у черзі",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages)" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 10 }
+      ] } }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Прийнято за період",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum(increase(coffee_orders_created_total[$__range])))" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Виконано за період",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum(increase(coffee_orders_processed_total[$__range])))" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Стан сервісів",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "up", "legendFormat": "{{job}}" }],
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": {
+          "0": { "text": "НЕ ПРАЦЮЄ", "color": "red" },
+          "1": { "text": "працює", "color": "green" }
+        } }]
+      }, "overrides": [] }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Швидкість: замовлень за хвилину",
+      "gridPos": { "x": 0, "y": 5, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(coffee_orders_created_total[1m])) * 60", "legendFormat": "прийнято" },
+        { "refId": "B", "expr": "sum(rate(coffee_orders_processed_total[1m])) * 60", "legendFormat": "виконано" }
+      ],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Довжина черги",
+      "gridPos": { "x": 12, "y": 5, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rabbitmq_queue_messages)", "legendFormat": "у черзі" }],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Середній час приготування, с",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "refId": "A",
+        "expr": "rate(coffee_order_processing_seconds_sum[1m]) / rate(coffee_order_processing_seconds_count[1m])",
+        "legendFormat": "секунд"
+      }],
+      "fieldConfig": { "defaults": { "min": 0, "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 8, "type": "bargauge", "title": "Виконано за напоями за період",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum by (drink) (increase(coffee_orders_processed_total[$__range])))", "legendFormat": "{{drink}}" }],
+      "options": { "orientation": "horizontal", "displayMode": "basic" },
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    }
+  ]
+}

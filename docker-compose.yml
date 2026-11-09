@@ -1,0 +1,101 @@
+name: coffee-shop
+
+x-rabbit-env: &rabbit-env
+  RABBIT_HOST: rabbitmq
+  RABBIT_USER: coffee
+  RABBIT_PASS: coffee_pass
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    environment:
+      RABBITMQ_DEFAULT_USER: coffee
+      RABBITMQ_DEFAULT_PASS: coffee_pass
+    ports:
+      - "127.0.0.1:15672:15672" # веб-панель
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    restart: unless-stopped
+
+  order-service:
+    build: ./services/order-service
+    environment: *rabbit-env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  barista-service:
+    build: ./services/barista-service
+    environment:
+      <<: *rabbit-env
+      DB_PATH: /data/orders.db
+      PREP_MIN_SECONDS: "2"
+      PREP_MAX_SECONDS: "4"
+    ports:
+      - "127.0.0.1:8001:8001" # метрики
+    volumes:
+      - barista_data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - order-service
+      - barista-service
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+      - alertmanager_data:/alertmanager
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      # Вхід без пароля, як у прикладі курсу. Порт доступний лише з цього комп'ютера.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/coffee-shop.json
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+  barista_data:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
