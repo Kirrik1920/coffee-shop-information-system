@@ -77,7 +77,7 @@ def create_order():
     drink = data.get("drink")
     quantity = data.get("quantity", 1)
 
-    if drink not in MENU:
+    if not isinstance(drink, str) or drink not in MENU:
         return jsonify(error="Такого напою немає в меню", menu=list(MENU)), 400
     if type(quantity) is not int or not 1 <= quantity <= MAX_QUANTITY:
         return jsonify(error=f"Кількість має бути від 1 до {MAX_QUANTITY}"), 400

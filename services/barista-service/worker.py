@@ -80,15 +80,35 @@ def save_order(order_id, order, created_at):
     db.commit()
 
 
+def parse_message(body):
+    """Перевіряє повідомлення за контрактом. Якщо воно неправильне, викликає ValueError."""
+    message = json.loads(body)
+    if not isinstance(message, dict) or not isinstance(message.get("data"), dict):
+        raise ValueError("повідомлення має містити об'єкт data")
+
+    order_id = message.get("id")
+    created_at = message.get("time")
+    order = message["data"]
+
+    if not isinstance(order_id, str) or not order_id:
+        raise ValueError("поле id має бути непорожнім рядком")
+    if not isinstance(order.get("drink"), str) or not order["drink"]:
+        raise ValueError("поле drink має бути непорожнім рядком")
+    if type(order.get("quantity")) is not int or order["quantity"] < 1:
+        raise ValueError("поле quantity має бути цілим числом від 1")
+    if not isinstance(order.get("customer"), (str, type(None))):
+        raise ValueError("поле customer має бути рядком")
+    if not isinstance(created_at, (str, type(None))):
+        raise ValueError("поле time має бути рядком")
+
+    return order_id, order, created_at
+
+
 def handle_order(channel, method, properties, body):
     """Обробляє одне повідомлення з черги."""
     try:
-        message = json.loads(body)
-        order_id = message["id"]
-        order = message["data"]
-        drink = order["drink"]
-        quantity = int(order["quantity"])
-    except (ValueError, KeyError, TypeError) as error:
+        order_id, order, created_at = parse_message(body)
+    except ValueError as error:
         # Зіпсоване повідомлення не повертаємо в чергу orders:
         # RabbitMQ перекладе його в окрему чергу orders.invalid для аналізу.
         ORDERS_FAILED.inc()
@@ -104,12 +124,12 @@ def handle_order(channel, method, properties, body):
     with PROCESSING_TIME.time():
         time.sleep(random.uniform(PREP_MIN, PREP_MAX))  # імітація приготування
 
-    save_order(order_id, order, message.get("time"))
-    ORDERS_PROCESSED.labels(drink=drink).inc()
+    save_order(order_id, order, created_at)
+    ORDERS_PROCESSED.labels(drink=order["drink"]).inc()
 
     # Підтвердження надсилаємо лише після збереження: при збої замовлення не загубиться.
     channel.basic_ack(delivery_tag=method.delivery_tag)
-    print(f"Готово: {drink} x{quantity} ({order_id})")
+    print(f"Готово: {order['drink']} x{order['quantity']} ({order_id})")
 
 
 def consume():
@@ -136,7 +156,8 @@ def main():
     while True:
         try:
             consume()
-        except pika.exceptions.AMQPConnectionError:
+        except (pika.exceptions.AMQPConnectionError, OSError):
+            # OSError охоплює випадок, коли адресу rabbitmq неможливо знайти в мережі Docker.
             print("RabbitMQ недоступний, нова спроба через 3 секунди")
             time.sleep(3)
 
