@@ -21,6 +21,7 @@ ROUTING_KEY = "orders.created"
 
 MENU = {"espresso": 45, "americano": 50, "cappuccino": 65, "latte": 70, "tea": 35}
 MAX_QUANTITY = 10
+MAX_CUSTOMER_LENGTH = 100
 
 # Метрики, які забирає Prometheus.
 ORDERS_CREATED = Counter(
@@ -96,8 +97,8 @@ def create_order():
         return jsonify(error="Такого напою немає в меню", menu=list(MENU)), 400
     if type(quantity) is not int or not 1 <= quantity <= MAX_QUANTITY:
         return jsonify(error=f"Кількість має бути від 1 до {MAX_QUANTITY}"), 400
-    if not is_text(customer):
-        return jsonify(error="Поле customer має бути текстом"), 400
+    if not is_text(customer) or len(customer) > MAX_CUSTOMER_LENGTH:
+        return jsonify(error=f"Поле customer має бути текстом до {MAX_CUSTOMER_LENGTH} символів"), 400
 
     # Формат повідомлення взято з лекції 9: id, name, time, data.
     message = {
