@@ -1,0 +1,13 @@
+﻿SERVICE             STATUS                    PORTS
+alertmanager        Up 14 minutes             127.0.0.1:9093->9093/tcp
+auth-service        Up 14 minutes             127.0.0.1:8002->8002/tcp
+barista-service     Up 2 minutes              127.0.0.1:8001->8001/tcp
+grafana             Up 14 minutes             127.0.0.1:3000->3000/tcp
+loki                Up 14 minutes             127.0.0.1:3100->3100/tcp
+order-service       Up 14 minutes             127.0.0.1:8000->8000/tcp
+postgres            Up 14 minutes (healthy)   5432/tcp
+postgres-exporter   Up 14 minutes             9187/tcp
+prometheus          Up 14 minutes             127.0.0.1:9090->9090/tcp
+promtail            Up 14 minutes             
+rabbitmq            Up 14 minutes (healthy)   127.0.0.1:15672->15672/tcp
+tempo               Up 14 minutes             127.0.0.1:3200->3200/tcp

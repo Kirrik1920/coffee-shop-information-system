@@ -1,0 +1,13 @@
+﻿Усього виконано: 55
+2026-11-10T13:08:17+00:00  cappuccino   x2  client-15
+2026-11-10T13:08:14+00:00  cappuccino   x2  client-14
+2026-11-10T13:08:11+00:00  latte        x2  client-13
+2026-11-10T13:08:07+00:00  tea          x3  client-12
+2026-11-10T13:08:04+00:00  cappuccino   x3  client-11
+2026-11-10T13:08:00+00:00  latte        x1  client-10
+2026-11-10T13:07:56+00:00  tea          x2  client-9
+2026-11-10T13:07:54+00:00  tea          x2  client-8
+2026-11-10T13:07:52+00:00  tea          x2  client-7
+2026-11-10T13:07:48+00:00  tea          x1  client-6
+2026-11-10T13:07:45+00:00  latte        x2  client-5
+2026-11-10T13:07:42+00:00  espresso     x3  client-4

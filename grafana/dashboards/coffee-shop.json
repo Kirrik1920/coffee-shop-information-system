@@ -105,14 +105,14 @@
       "gridPos": { "x": 6, "y": 29, "w": 6, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [{ "refId": "A", "expr": "sum(pg_stat_activity_count{datname=\"coffee\"})" }],
-      "fieldConfig": { "defaults": {}, "overrides": [] }
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] }
     },
     {
       "id": 13, "type": "stat", "title": "Розмір бази",
       "gridPos": { "x": 12, "y": 29, "w": 6, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [{ "refId": "A", "expr": "pg_database_size_bytes{datname=\"coffee\"}" }],
-      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+      "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] }
     },
     {
       "id": 14, "type": "stat", "title": "Помилки запитів до БД за період",
